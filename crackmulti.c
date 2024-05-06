@@ -11,7 +11,6 @@
 
 char **password_list;
 char **hash_list;
-char salt[12];
 int npasswd;
 int nhashes;
 int password_found = 0;
@@ -64,23 +63,27 @@ int load_passwords(const char *filename) {
     return i;
 }
 
+// Function to extract salt from hash
+void extract_salt(const char *hash, char *salt) {
+    // The salt is the first two characters of the hash
+    strncpy(salt, hash, 2);
+    salt[2] = '\0'; // Null-terminate the salt
+}
+
 // Function to perform the brute force attack
 void *brute_force(void *thread_arg) {
     struct ThreadData *data = (struct ThreadData *)thread_arg;
     int tid = data->thread_id;
-    int start = tid * (npasswd / MAX_THREADS);
-    int end = (tid == MAX_THREADS - 1) ? npasswd : ((tid + 1) * (npasswd / MAX_THREADS));
-
-    printf("Thread %d: Processing passwords from index %d to %d\n", tid, start, end - 1);
 
     for (int j = 0; j < nhashes && !password_found; j++) {
-        for (int i = start; i < end && !password_found; i++) {
-            printf("Thread %d: Iteration %d\n", tid, i);
-            printf("Thread %d: Password: %s\n", tid, password_list[i]);
-            printf("Thread %d: Salt: %s\n", tid, salt);
+        char salt[3];
+        extract_salt(hash_list[j], salt);
+
+        printf("Thread %d: Hash %d salt: %s\n", tid, j, salt);
+
+        for (int i = 0; i < npasswd && !password_found; i++) {
             char *new_hash = crypt_r(password_list[i], salt, data->crypt_data);
-            printf("Thread %d: New hash: %s\n", tid, new_hash);
-            printf("Thread %d: Expected hash: %s\n", tid, hash_list[j]);
+            printf("Thread %d: Trying password %s with salt %s. New hash: %s\n", tid, password_list[i], salt, new_hash);
             if (strcmp(hash_list[j], new_hash) == 0) {
                 pthread_mutex_lock(&mutex);
                 printf("Thread %d: Password found for hash %d: %s\n", tid, j, password_list[i]);
