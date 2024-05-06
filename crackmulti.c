@@ -65,9 +65,16 @@ int load_passwords(const char *filename) {
 
 // Function to extract salt from hash
 void extract_salt(const char *hash, char *salt) {
-    // The salt is the first two characters of the hash
-    strncpy(salt, hash, 2);
-    salt[2] = '\0'; // Null-terminate the salt
+    int i = 0, j = 0;
+    // Copy the hash type and salt until the second '$' is found
+    for (i = 0; hash[i] != '\0' && j < 2; i++) {
+        salt[i] = hash[i];
+        if (hash[i] == '$') {
+            j++;
+        }
+    }
+    // Ensure the salt is null-terminated
+    salt[i] = '\0';
 }
 
 // Function to perform the brute force attack
