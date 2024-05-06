@@ -17,7 +17,12 @@ int nhashes;
 int password_found = 0;
 pthread_mutex_t mutex;
 
-// Função para carregar a lista de hashes do arquivo
+struct ThreadData {
+    int thread_id;
+    struct crypt_data *crypt_data;
+};
+
+// Function to load the list of hashes from the file
 int load_hashes(const char *filename) {
     char hash[MAX_PASSWORD_LENGTH];
     FILE *file = fopen(filename, "r");
@@ -38,7 +43,7 @@ int load_hashes(const char *filename) {
     return i;
 }
 
-// Função para carregar a lista de senhas do arquivo
+// Function to load the list of passwords from the file
 int load_passwords(const char *filename) {
     char passwd[MAX_PASSWORD_LENGTH];
     FILE *file = fopen(filename, "r");
@@ -58,29 +63,20 @@ int load_passwords(const char *filename) {
     fclose(file);
     return i;
 }
-struct data{
-    int thread_id;
-    struct crypt_data *crypt_data;
-};
-// Função para realizar o ataque de força bruta
+
+// Function to perform the brute force attack
 void *brute_force(void *thread_arg) {
-    struct data *data;
-    data = (struct data *) thread_arg;
-    long tid = (long)thread_arg;
+    struct ThreadData *data = (struct ThreadData *)thread_arg;
+    int tid = data->thread_id;
     int start = tid * (npasswd / MAX_THREADS);
     int end = (tid == MAX_THREADS - 1) ? npasswd : ((tid + 1) * (npasswd / MAX_THREADS));
 
     for (int j = 0; j < nhashes && !password_found; j++) {
         for (int i = start; i < end && !password_found; i++) {
-            printf("iterarion %d\n",i);
-            printf("password %s\n",password_list[j]);
-            printf("salt %s\n",salt);
-            char *new_hash = crypt_r(password_list[i], salt,data->crypt_data);
-            printf("newhash %s\n",new_hash);
-            printf("hash-- %s\n",hash_list[j]);
+            char *new_hash = crypt_r(password_list[i], salt, data->crypt_data);
             if (strcmp(hash_list[j], new_hash) == 0) {
                 pthread_mutex_lock(&mutex);
-                printf("Thread %ld: Password found for hash %d: %s\n", tid, j, password_list[i]);
+                printf("Thread %d: Password found for hash %d: %s\n", tid, j, password_list[i]);
                 password_found = 1;
                 pthread_mutex_unlock(&mutex);
             }
@@ -115,15 +111,15 @@ int main(int argc, char *argv[]) {
     }
 
     pthread_t threads[MAX_THREADS];
-    struct data thread_data[num_threads];
+    struct ThreadData thread_data[num_threads];
     struct crypt_data crypt_data[num_threads];
 
-    for(int i=0;i<num_threads;i++){
+    for (int i = 0; i < num_threads; i++) {
         crypt_data[i].initialized = 0;
     }
 
-    for (long t = 0; t < num_threads; t++) {
-        thread_data[t].thread_id=t;
+    for (int t = 0; t < num_threads; t++) {
+        thread_data[t].thread_id = t;
         thread_data[t].crypt_data = &crypt_data[t];
         int rc = pthread_create(&threads[t], NULL, brute_force, (void *)&thread_data[t]);
         if (rc) {
