@@ -64,26 +64,18 @@ int load_passwords(const char *filename) {
 }
 
 void extract_salt(const char *hash, char *salt) {
-    int i = 0, j = 0, start = 0, end = 0;
-    // Find the start and end of the salt part
+    int i = 0, count = 0;
+    // Iterate over the hash to extract the full salt including the hash type and the actual salt
     for (i = 0; hash[i] != '\0'; i++) {
+        salt[i] = hash[i];
         if (hash[i] == '$') {
-            j++;
-            if (j == 2) { // Start capturing after the second '$'
-                start = i + 1;
-            } else if (j == 3) { // Stop capturing before the third '$'
-                end = i;
+            count++;
+            if (count == 3) { // Stop after the third '$' which ends the salt part
                 break;
             }
         }
     }
-    // Copy the salt part
-    if (end > start) {
-        strncpy(salt, hash + start, end - start);
-        salt[end - start] = '\0'; // Null-terminate the salt
-    } else {
-        salt[0] = '\0'; // In case of any error, return an empty string
-    }
+    salt[i] = '\0'; // Null-terminate the salt
 }
 
 // Function to perform the brute force attack
