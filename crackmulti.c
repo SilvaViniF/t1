@@ -71,9 +71,16 @@ void *brute_force(void *thread_arg) {
     int start = tid * (npasswd / MAX_THREADS);
     int end = (tid == MAX_THREADS - 1) ? npasswd : ((tid + 1) * (npasswd / MAX_THREADS));
 
+    printf("Thread %d: Processing passwords from index %d to %d\n", tid, start, end - 1);
+
     for (int j = 0; j < nhashes && !password_found; j++) {
         for (int i = start; i < end && !password_found; i++) {
+            printf("Thread %d: Iteration %d\n", tid, i);
+            printf("Thread %d: Password: %s\n", tid, password_list[i]);
+            printf("Thread %d: Salt: %s\n", tid, salt);
             char *new_hash = crypt_r(password_list[i], salt, data->crypt_data);
+            printf("Thread %d: New hash: %s\n", tid, new_hash);
+            printf("Thread %d: Expected hash: %s\n", tid, hash_list[j]);
             if (strcmp(hash_list[j], new_hash) == 0) {
                 pthread_mutex_lock(&mutex);
                 printf("Thread %d: Password found for hash %d: %s\n", tid, j, password_list[i]);
