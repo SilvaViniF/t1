@@ -7,7 +7,35 @@
 #define MAX_PASSWORD_LENGTH 128
 #define MAX_THREADS 128
 #define MAX_QUEUE_SIZE 10000
+#define MAX_HASHES 1000
 
+char **hash_list;
+int num_hashes;
+
+int load_hashes(const char *filename) {
+    char hash[MAX_PASSWORD_LENGTH];
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("fopen()");
+        return -1;
+    }
+
+    hash_list = malloc(MAX_HASHES * sizeof(char *));
+    if (hash_list == NULL) {
+        fprintf(stderr, "Memory allocation failed for hash list.\n");
+        fclose(file);
+        return -1;
+    }
+
+    int i = 0;
+    while (i < MAX_HASHES && fscanf(file, "%s", hash) != EOF) {
+        hash_list[i] = strdup(hash);
+        i++;
+    }
+
+    fclose(file);
+    return i;
+}
 pthread_mutex_t mutex;
 pthread_cond_t full_cond, empty_cond;
 
