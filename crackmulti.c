@@ -14,7 +14,6 @@ char **hash_list;
 char **cracked_list;
 int npasswd;
 int nhashes;
-int password_found = 0;
 int foundhashes=0;
 pthread_mutex_t mutex;
 
@@ -99,15 +98,13 @@ void extract_salt(const char *hash, char *salt) {
 void *brute_force(void *thread_arg) {
     struct ThreadData *data = (struct ThreadData *)thread_arg;
     int tid = data->thread_id;
-
-    for (int j = 0; j < nhashes+1 && !password_found; j++) {
-        
-        printf("current passwordfound: %d\n",password_found);
+    
+    for (int j = 0; j < nhashes+1 ; j++) {
         char salt[11];
         extract_salt(hash_list[j], salt);
 
         printf("Thread %d: Hash %d salt: %s\n", tid, j, salt);
-        for (int i = 0; i < npasswd && !password_found; i++) {
+        for (int i = 0; i < npasswd; i++) {
             char *new_hash = crypt_r(password_list[i], salt, data->crypt_data);
             printf("Thread %d: Trying password %s with salt %s. New hash: %s\n", tid, password_list[i], salt, new_hash);
             //printf("Comparando com o hash: %s\n",hash_list[j]);
@@ -120,10 +117,12 @@ void *brute_force(void *thread_arg) {
                 //remove o hash encontrado da lista
                 for(int r = j;r<nhashes-1;r++){
                     hash_list[r]=hash_list[r+1];
+                    printf("atual has list: %s\n",hash_list[j]);
                 }
                 nhashes--;
+            
                 pthread_mutex_unlock(&mutex);
-                //password_found = 1;
+                pthread_exit(NULL);
                 
             }
         }
