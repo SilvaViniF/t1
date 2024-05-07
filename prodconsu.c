@@ -135,6 +135,9 @@ void *consumer(void *thread_arg) {
         char *hash = pair.hash;
         char *password = pair.password;
 
+        // Log information about the received pair
+        printf("Thread %d: Dequeued pair: %s - %s\n", tid, password, hash);
+
         // Check for null pointers before dereferencing
         if (hash == NULL || password == NULL) {
             fprintf(stderr, "Error: Null pointer detected.\n");
@@ -163,7 +166,6 @@ void *consumer(void *thread_arg) {
 
     pthread_exit(NULL);
 }
-
 
 int main(int argc, char *argv[]) {
     if (argc != 4) {
