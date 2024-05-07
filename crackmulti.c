@@ -11,9 +11,11 @@
 
 char **password_list;
 char **hash_list;
+char **cracked_list;
 int npasswd;
 int nhashes;
 int password_found = 0;
+int foundhashes=0;
 pthread_mutex_t mutex;
 
 struct ThreadData {
@@ -112,6 +114,9 @@ void *brute_force(void *thread_arg) {
             if (strcmp(hash_list[j], new_hash) == 0) {
                 pthread_mutex_lock(&mutex);
                 printf("Thread %d: Password found for hash %d: %s\n", tid, j, password_list[i]);
+                //adiciona o hash na lista de hashes encontrados
+                cracked_list[j]=hash_list[j];
+                foundhashes++;
                 //remove o hash encontrado da lista
                 for(int r = j;r<nhashes-1;r++){
                     hash_list[r]=hash_list[r+1];
@@ -141,7 +146,7 @@ int main(int argc, char *argv[]) {
     }
 
     pthread_mutex_init(&mutex, NULL);
-
+    cracked_list = malloc(MAX_HASHES * sizeof(char *));
     nhashes = load_hashes("hashes2.txt");
     if (nhashes < 0) {
         return 1;
@@ -174,9 +179,16 @@ int main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
     }
 
-    if (!password_found) {
+    if (!foundhashes) {
         printf("Password not found for any hash!\n");
     }
+    else{
+        printf("\nHashes encontrados:\n");
+        for (int i = 0; i < foundhashes-1; i++) {
+            printf("%s\n", cracked_list[i]);
+        }
+    }
+
 
     pthread_mutex_destroy(&mutex);
 
