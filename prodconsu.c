@@ -119,6 +119,9 @@ void *producer(void *thread_arg) {
             continue;
         }
 
+        // Set hash value to a placeholder (modify as per your logic)
+        pair.hash = "placeholder_hash"; // Replace with actual hash value logic
+
         enqueue(pair);
     }
 
