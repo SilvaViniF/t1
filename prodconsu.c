@@ -36,6 +36,7 @@ int load_hashes(const char *filename) {
     fclose(file);
     return i;
 }
+
 pthread_mutex_t mutex;
 pthread_cond_t full_cond, empty_cond;
 
@@ -104,6 +105,10 @@ void *producer(void *thread_arg) {
         password[strcspn(password, "\n")] = '\0'; // Remove newline
         PasswordHashPair pair;
         pair.password = strdup(password);
+        if (pair.password == NULL) {
+            fprintf(stderr, "Error: Memory allocation failed for password.\n");
+            continue;
+        }
         enqueue(pair);
     }
 
@@ -118,6 +123,12 @@ void *consumer(void *thread_arg) {
         PasswordHashPair pair = dequeue();
         char *hash = pair.hash;
         char *password = pair.password;
+
+        if (hash == NULL || password == NULL) {
+            fprintf(stderr, "Error: Null pointer detected.\n");
+            free(pair.password); // Free memory before exiting
+            continue;
+        }
 
         for (int j = 0; j < num_hashes; j++) {
             char salt[MAX_PASSWORD_LENGTH];
