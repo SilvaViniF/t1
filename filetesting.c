@@ -23,12 +23,7 @@ int load_hashes(const char *filename) {
 
     hash_list = malloc(MAX_HASHES * sizeof(char *));
     int i = 0;
-    while (i < MAX_HASHES && fgets(hash, MAX_PASSWORD_LENGTH, file) != NULL) {
-        // Remove newline character if present
-        int len = strlen(hash);
-        if (hash[len - 1] == '\n') {
-            hash[len - 1] = '\0';
-        }
+    while (i < MAX_HASHES && fscanf(file, "%s", hash) != EOF) {
         hash_list[i] = strdup(hash);
         i++;
     }
@@ -36,6 +31,7 @@ int load_hashes(const char *filename) {
     fclose(file);
     return i;
 }
+
 
 // Function to load the list of passwords from the file
 int load_passwords(const char *filename) {
