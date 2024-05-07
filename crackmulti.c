@@ -99,14 +99,14 @@ void *brute_force(void *thread_arg) {
     int tid = data->thread_id;
 
     for (int j = 0; j < nhashes && !password_found; j++) {
-        char salt[3];
+        char salt[11];
         extract_salt(hash_list[j], salt);
 
         printf("Thread %d: Hash %d salt: %s\n", tid, j, salt);
-
         for (int i = 0; i < npasswd && !password_found; i++) {
             char *new_hash = crypt_r(password_list[i], salt, data->crypt_data);
             printf("Thread %d: Trying password %s with salt %s. New hash: %s\n", tid, password_list[i], salt, new_hash);
+            printf("Comparando com o hash: %s\n",hash_list[j]);
             if (strcmp(hash_list[j], new_hash) == 0) {
                 pthread_mutex_lock(&mutex);
                 printf("Thread %d: Password found for hash %d: %s\n", tid, j, password_list[i]);
@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
 
     pthread_mutex_init(&mutex, NULL);
 
-    nhashes = load_hashes("hashes.txt");
+    nhashes = load_hashes("hashes2.txt");
     if (nhashes < 0) {
         return 1;
     }
