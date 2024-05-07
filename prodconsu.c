@@ -103,18 +103,29 @@ void *producer(void *thread_arg) {
 
     while (fgets(password, MAX_PASSWORD_LENGTH, file) != NULL) {
         password[strcspn(password, "\n")] = '\0'; // Remove newline
+
+        // Check if password is empty or exceeds MAX_PASSWORD_LENGTH
+        if (strlen(password) == 0 || strlen(password) >= MAX_PASSWORD_LENGTH) {
+            fprintf(stderr, "Error: Invalid password detected.\n");
+            continue;
+        }
+
         PasswordHashPair pair;
+
+        // Allocate memory for password
         pair.password = strdup(password);
         if (pair.password == NULL) {
             fprintf(stderr, "Error: Memory allocation failed for password.\n");
             continue;
         }
+
         enqueue(pair);
     }
 
     fclose(file);
     pthread_exit(NULL);
 }
+
 
 void *consumer(void *thread_arg) {
     int tid = *((int *)thread_arg);
@@ -124,9 +135,13 @@ void *consumer(void *thread_arg) {
         char *hash = pair.hash;
         char *password = pair.password;
 
+        // Check for null pointers before dereferencing
         if (hash == NULL || password == NULL) {
             fprintf(stderr, "Error: Null pointer detected.\n");
-            free(pair.password); // Free memory before exiting
+            // Free memory before exiting
+            if (password != NULL) {
+                free(password);
+            }
             continue;
         }
 
@@ -148,6 +163,7 @@ void *consumer(void *thread_arg) {
 
     pthread_exit(NULL);
 }
+
 
 int main(int argc, char *argv[]) {
     if (argc != 4) {
