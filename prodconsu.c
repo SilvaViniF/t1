@@ -32,6 +32,7 @@ struct Buffer {
 
 struct Buffer buffer[BUFFER_SIZE];
 int in = 0, out = 0, count = 0;
+password_found=0;
 
 // Function to load the list of hashes from the file
 int load_hashes(const char *filename) {
@@ -112,7 +113,7 @@ void *brute_force(void *thread_arg) {
 
     while (1) {
         pthread_mutex_lock(&mutex);
-        while (count == 0) {
+        while (count == 0 && !password_found) {
             pthread_cond_wait(&buffer_not_empty, &mutex);
         }
         if (password_found) {
@@ -146,6 +147,7 @@ void *brute_force(void *thread_arg) {
                 nhashes--;
                 password_found = 1;
                 pthread_mutex_unlock(&mutex);
+                break; // Exit the loop if password found
             }
         }
         free(password);
