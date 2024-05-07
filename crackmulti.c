@@ -32,8 +32,7 @@ int load_hashes(const char *filename) {
 
     hash_list = malloc(MAX_HASHES * sizeof(char *));
     int i = 0;
-    while (i < MAX_HASHES && fgets(hash, MAX_PASSWORD_LENGTH, file) != NULL) {
-        hash[strcspn(hash, "\n")] = 0; // Remove newline
+    while (i < MAX_HASHES && fscanf(file, "%s", hash) != EOF) {
         hash_list[i] = strdup(hash);
         i++;
     }
@@ -41,6 +40,7 @@ int load_hashes(const char *filename) {
     fclose(file);
     return i;
 }
+
 
 // Function to load the list of passwords from the file
 int load_passwords(const char *filename) {
@@ -98,7 +98,8 @@ void *brute_force(void *thread_arg) {
     struct ThreadData *data = (struct ThreadData *)thread_arg;
     int tid = data->thread_id;
 
-    for (int j = 0; j < nhashes && !password_found; j++) {
+    for (int j = 0; j < nhashes+1 && !password_found; j++) {
+        printf("Comparando com esse HASH: %s\n",hash_list[j]);
         char salt[11];
         extract_salt(hash_list[j], salt);
 
@@ -106,7 +107,7 @@ void *brute_force(void *thread_arg) {
         for (int i = 0; i < npasswd && !password_found; i++) {
             char *new_hash = crypt_r(password_list[i], salt, data->crypt_data);
             printf("Thread %d: Trying password %s with salt %s. New hash: %s\n", tid, password_list[i], salt, new_hash);
-            printf("Comparando com o hash: %s\n",hash_list[j]);
+            //printf("Comparando com o hash: %s\n",hash_list[j]);
             if (strcmp(hash_list[j], new_hash) == 0) {
                 pthread_mutex_lock(&mutex);
                 printf("Thread %d: Password found for hash %d: %s\n", tid, j, password_list[i]);
