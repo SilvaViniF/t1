@@ -99,7 +99,8 @@ void *brute_force(void *thread_arg) {
     int tid = data->thread_id;
 
     for (int j = 0; j < nhashes+1 && !password_found; j++) {
-        printf("Comparando com esse HASH: %s\n",hash_list[j]);
+        
+        printf("current passwordfound: %d\n",password_found);
         char salt[11];
         extract_salt(hash_list[j], salt);
 
@@ -111,10 +112,17 @@ void *brute_force(void *thread_arg) {
             if (strcmp(hash_list[j], new_hash) == 0) {
                 pthread_mutex_lock(&mutex);
                 printf("Thread %d: Password found for hash %d: %s\n", tid, j, password_list[i]);
-                password_found = 1;
+                //remove o hash encontrado da lista
+                for(int r = j;r<nhashes-1;r++){
+                    hash_list[r]=hash_list[r+1];
+                }
+                nhashes--;
                 pthread_mutex_unlock(&mutex);
+                //password_found = 1;
+                
             }
         }
+        
     }
 
     pthread_exit(NULL);
@@ -171,6 +179,7 @@ int main(int argc, char *argv[]) {
     }
 
     pthread_mutex_destroy(&mutex);
+
 
     return 0;
 }
