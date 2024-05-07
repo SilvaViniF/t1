@@ -52,17 +52,32 @@ int load_passwords(const char *filename) {
     }
 
     password_list = malloc(MAX_PASSWORDS * sizeof(char *));
+    if (password_list == NULL) {
+        fprintf(stderr, "Memory allocation failed for password list.\n");
+        fclose(file);
+        return -1;
+    }
+
     int i = 0;
     while (i < MAX_PASSWORDS && fgets(passwd, MAX_PASSWORD_LENGTH, file) != NULL) {
         passwd[strcspn(passwd, "\n")] = 0; // Remove newline
         password_list[i] = strdup(passwd);
+        if (password_list[i] == NULL) {
+            fprintf(stderr, "Memory allocation failed for password %d.\n", i);
+            // Free previously allocated memory
+            while (i > 0) {
+                free(password_list[--i]);
+            }
+            free(password_list);
+            fclose(file);
+            return -1;
+        }
         i++;
     }
 
     fclose(file);
     return i;
 }
-
 void extract_salt(const char *hash, char *salt) {
     int i = 0, count = 0;
     // Iterate over the hash to extract the full salt including the hash type and the actual salt
