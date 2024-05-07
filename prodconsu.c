@@ -32,7 +32,7 @@ struct Buffer {
 
 struct Buffer buffer[BUFFER_SIZE];
 int in = 0, out = 0, count = 0;
-password_found=0;
+int password_found=0;
 
 // Function to load the list of hashes from the file
 int load_hashes(const char *filename) {
@@ -116,7 +116,7 @@ void *brute_force(void *thread_arg) {
         while (count == 0 && !password_found) {
             pthread_cond_wait(&buffer_not_empty, &mutex);
         }
-        if (password_found) {
+        if (count == 0 && password_found) {
             pthread_mutex_unlock(&mutex);
             pthread_exit(NULL);
         }
@@ -133,7 +133,7 @@ void *brute_force(void *thread_arg) {
         extract_salt(hash_list[hash_index], salt);
 
         printf("Thread %d: Hash %d salt: %s\n", tid, hash_index, salt);
-        for (int i = 0; i < npasswd && !password_found; i++) {
+        for (int i = 0; i < npasswd; i++) {
             char *new_hash = crypt_r(password_list[i], salt, data->crypt_data);
             printf("Thread %d: Trying password %s with salt %s. New hash: %s\n", tid, password_list[i], salt, new_hash);
             if (strcmp(hash_list[hash_index], new_hash) == 0) {
@@ -141,10 +141,6 @@ void *brute_force(void *thread_arg) {
                 printf("Thread %d: Password found for hash %d: %s\n", tid, hash_index, password_list[i]);
                 cracked_list[hash_index] = hash_list[hash_index];
                 foundhashes++;
-                for (int r = hash_index; r < nhashes - 1; r++) {
-                    hash_list[r] = hash_list[r + 1];
-                }
-                nhashes--;
                 password_found = 1;
                 pthread_mutex_unlock(&mutex);
                 break; // Exit the loop if password found
