@@ -94,41 +94,46 @@ void extract_salt(const char *hash, char *salt) {
 
 void *producer(void *thread_arg) {
     const char *filename = (const char *)thread_arg;
-    char password[MAX_PASSWORD_LENGTH];
+    char line[MAX_PASSWORD_LENGTH * 2]; // Assuming hash and password are separated by a space
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("fopen()");
         pthread_exit(NULL);
     }
 
-    while (fgets(password, MAX_PASSWORD_LENGTH, file) != NULL) {
-        password[strcspn(password, "\n")] = '\0'; // Remove newline
+    while (fgets(line, sizeof(line), file) != NULL) {
+        char *password = strtok(line, " \n");
+        char *hash = strtok(NULL, " \n");
 
-        // Check if password is empty or exceeds MAX_PASSWORD_LENGTH
-        if (strlen(password) == 0 || strlen(password) >= MAX_PASSWORD_LENGTH) {
-            fprintf(stderr, "Error: Invalid password detected.\n");
+        // Check if both password and hash are present
+        if (password == NULL || hash == NULL) {
+            fprintf(stderr, "Error: Invalid line format in input file.\n");
             continue;
         }
 
+        // Allocate memory for the password
         PasswordHashPair pair;
-
-        // Allocate memory for password
         pair.password = strdup(password);
         if (pair.password == NULL) {
             fprintf(stderr, "Error: Memory allocation failed for password.\n");
             continue;
         }
 
-        // Set hash value to a placeholder (modify as per your logic)
-        pair.hash = "placeholder_hash"; // Replace with actual hash value logic
+        // Allocate memory for the hash and copy it
+        pair.hash = strdup(hash);
+        if (pair.hash == NULL) {
+            fprintf(stderr, "Error: Memory allocation failed for hash.\n");
+            free(pair.password); // Free memory allocated for password
+            continue;
+        }
 
+        // Enqueue the pair into the shared queue
         enqueue(pair);
     }
 
     fclose(file);
     pthread_exit(NULL);
 }
-
 
 void *consumer(void *thread_arg) {
     int tid = *((int *)thread_arg);
