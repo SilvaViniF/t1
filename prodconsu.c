@@ -4,8 +4,7 @@
 #include <pthread.h>
 #include <crypt.h>
 #include <semaphore.h>
-
-
+//https://prod.liveshare.vsengsaas.visualstudio.com/join?7096C3694B69805D72408D1806119954015B
 #define HASH_SIZE 37
 #define MAX_THREADS 128
 
@@ -16,6 +15,7 @@ char **cracked_list;
 int npasswd;
 int nhashes;
 int foundhashes = 0;
+struct Buffer;
 
 
 struct ThreadData {
@@ -28,7 +28,7 @@ struct Buffer {
     int index;
 };
 
-struct Buffer buffer[BUFFER_SIZE];
+
 
 int password_found=0;
 
@@ -42,9 +42,9 @@ int load_hashes(const char *filename) {
     }
 
     hash_list = malloc(HASH_SIZE * sizeof(char));
-    int i = 0;
+    int i = 1;
     while (fscanf(file, "%s", hash) != EOF) {
-        hash_list=realloc(hash_list,i);
+        hash_list=realloc(hash_list,i*HASH_SIZE);
         hash_list[i] = strdup(hash);
         i++;
     }
@@ -55,7 +55,7 @@ int load_hashes(const char *filename) {
 
 // Function to load the list of passwords from the file
 int load_passwords(const char *filename) {
-    char passwd[MAX_PASSWORD_LENGTH];
+    char passwd[0];
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("fopen()");
