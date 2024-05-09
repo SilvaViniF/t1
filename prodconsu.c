@@ -2,22 +2,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <crypt.h>
+#include <semaphore.h>
 
-#define HASH_SIZE 37	//36 + 1 '/n'
 
-#define MAX_PASSWORDS 15000000
-#define MAX_PASSWORD_LENGTH 128
+#define HASH_SIZE 37
 #define MAX_THREADS 128
-#define BUFFER_SIZE 100
+
 
 char **password_list;
 char **hash_list;
 char **cracked_list;
-int nPasswd;
-int nHashes;
+int npasswd;
+int nhashes;
 int foundhashes = 0;
+
 
 struct ThreadData {
     int thread_id;
@@ -30,21 +29,22 @@ struct Buffer {
 };
 
 struct Buffer buffer[BUFFER_SIZE];
-int in = 0, out = 0, count = 0;
+
 int password_found=0;
 
 // Function to load the list of hashes from the file
 int load_hashes(const char *filename) {
-    char hash[MAX_PASSWORD_LENGTH];
+    char hash[HASH_SIZE];
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("fopen()");
         return -1;
     }
 
-    hash_list = malloc(MAX_HASHES * sizeof(char *));
+    hash_list = malloc(HASH_SIZE * sizeof(char));
     int i = 0;
-    while (i < MAX_HASHES && fscanf(file, "%s", hash) != EOF) {
+    while (fscanf(file, "%s", hash) != EOF) {
+        hash_list=realloc(hash_list,i);
         hash_list[i] = strdup(hash);
         i++;
     }
@@ -155,19 +155,24 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int num_threads = atoi(argv[1]);	//converte argv[1] para int
+    int num_threads = atoi(argv[1]);
     if (num_threads <= 0 || num_threads > MAX_THREADS) {
         fprintf(stderr, "Invalid number of threads. Must be between 1 and %d\n", MAX_THREADS);
         return 1;
     }
-  
-    cracked_list = malloc(sizeof(char)*HASH_SIZE);
-    nHashes = load_hashes("hashes2.txt");
+    
+    getchar();
+    pthread_mutex_init(&mutex, NULL);
+    nhashes = load_hashes("hashes2.txt");
+    cracked_list = malloc(HASH_SIZE*sizeof(char));
+    
+    //realloc depois
+    
     if (nhashes < 0) {
         return 1;
     }
 
-    nPasswd = load_passwords(argv[2]);
+    npasswd = load_passwords(argv[2]);
     if (npasswd < 0) {
         return 1;
     }
@@ -217,7 +222,7 @@ int main(int argc, char *argv[]) {
         printf("Password not found for any hash!\n");
     } else {
         printf("\nHashes encontrados:\n");
-        for (int i = 0; i < foundhashes - 1; i++) {
+        for (int i = 0; i < foundhashes; i++) {
             printf("%s\n", cracked_list[i]);
         }
     }
