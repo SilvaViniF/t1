@@ -7,7 +7,7 @@
 //https://prod.liveshare.vsengsaas.visualstudio.com/join?7096C3694B69805D72408D1806119954015B
 #define HASH_SIZE 37
 #define MAX_THREADS 128
-
+#define PASS_LENGTH 30
 
 char **password_list;
 char **hash_list;
@@ -15,20 +15,20 @@ char **cracked_list;
 int npasswd;
 int nhashes;
 int foundhashes = 0;
-struct Buffer;
+struct Buffer *buffer;
 
+pthread_mutex_t mutex_buffer;
 
 struct ThreadData {
     int thread_id;
-    struct crypt_data *crypt_data;
+    //struct crypt_data *crypt_data;
+    struct crypt_data crypt_data;
 };
 
 struct Buffer {
-    char *password;
+    char *hashes;
     int index;
 };
-
-
 
 int password_found=0;
 
@@ -44,8 +44,8 @@ int load_hashes(const char *filename) {
     hash_list = malloc(HASH_SIZE * sizeof(char));
     int i = 1;
     while (fscanf(file, "%s", hash) != EOF) {
-        hash_list=realloc(hash_list,i*HASH_SIZE);
-        hash_list[i] = strdup(hash);
+        hash_list=realloc(hash_list, i*HASH_SIZE);
+        hash_list[i-1] = strdup(hash);
         i++;
     }
 
@@ -55,22 +55,24 @@ int load_hashes(const char *filename) {
 
 // Function to load the list of passwords from the file
 int load_passwords(const char *filename) {
-    char passwd[0];
+    char passwd[PASS_LENGTH];
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("fopen()");
         return -1;
     }
-
-    password_list = malloc(MAX_PASSWORDS * sizeof(char *));
+    
+    password_list = malloc(PASS_LENGTH * sizeof(char));
+    
     if (password_list == NULL) {
         fprintf(stderr, "Memory allocation failed for password list.\n");
         fclose(file);
         return -1;
     }
-
+    
     int i = 0;
-    while (i < MAX_PASSWORDS && fgets(passwd, MAX_PASSWORD_LENGTH, file) != NULL) {
+    while (fgets(passwd, PASS_LENGTH, file) != NULL) {
+        
         passwd[strcspn(passwd, "\n")] = 0; // Remove newline
         password_list[i] = strdup(passwd);
         if (password_list[i] == NULL) {
@@ -89,7 +91,7 @@ int load_passwords(const char *filename) {
     fclose(file);
     return i;
 }
-
+/*
 void extract_salt(const char *hash, char *salt) {
     int i = 0, count = 0;
     // Iterate over the hash to extract the full salt including the hash type and the actual salt
@@ -104,14 +106,22 @@ void extract_salt(const char *hash, char *salt) {
     }
     salt[i] = '\0'; // Null-terminate the salt
 }
-
+*/
 // Function to perform the brute force attack
 void *brute_force(void *thread_arg) {
     struct ThreadData *data = (struct ThreadData *)thread_arg;
     int tid = data->thread_id;
 
     while (1) {
-        pthread_mutex_lock(&mutex);
+
+            //criptografar a senha 
+            //extrair o salt do hash
+            /* salt = uma sequencia aleatoria usada junto com a senha real para
+            produzir a senha criptografada*/
+
+/*
+
+        //pthread_mutex_lock(&mutex);
         while (count == 0 && !password_found) {
             pthread_cond_wait(&buffer_not_empty, &mutex);
         }
@@ -127,16 +137,16 @@ void *brute_force(void *thread_arg) {
 
         char *password = current_job.password;
         int hash_index = current_job.index;
-
-        char salt[11];
+        
+        /* char salt[11];
         extract_salt(hash_list[hash_index], salt);
-
+         
         printf("Thread %d: Hash %d salt: %s\n", tid, hash_index, salt);
         for (int i = 0; i < npasswd; i++) {
             char *new_hash = crypt_r(password_list[i], salt, data->crypt_data);
             printf("Thread %d: Trying password %s with salt %s. New hash: %s\n", tid, password_list[i], salt, new_hash);
             if (strcmp(hash_list[hash_index], new_hash) == 0) {
-                pthread_mutex_lock(&mutex);
+                //pthread_mutex_lock(&mutex);
                 printf("Thread %d: Password found for hash %d: %s\n", tid, hash_index, password_list[i]);
                 cracked_list[hash_index] = hash_list[hash_index];
                 foundhashes++;
@@ -146,8 +156,18 @@ void *brute_force(void *thread_arg) {
             }
         }
         free(password);
-    }
+    */}
 }
+
+void *feeder() {
+   /*  while(1){
+        sem_wait(&semaforo);
+        pthread_mutex_lock(&mutex_buffer);
+        //edita buffer
+        pthread_mutex_unlock(&mutex_buffer);
+    } */
+}
+
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
@@ -161,8 +181,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    getchar();
-    pthread_mutex_init(&mutex, NULL);
+    
+    pthread_mutex_init(&mutex_buffer, NULL);
+
     nhashes = load_hashes("hashes2.txt");
     cracked_list = malloc(HASH_SIZE*sizeof(char));
     
@@ -177,21 +198,49 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    pthread_t threads[MAX_THREADS];
+    printf("\n HASH LIST:\n");
+        for (int i = 0; i < nhashes-1; i++) {
+            printf("%s\n", hash_list[i]);
+        }
+
+    printf("\n PASSWORD LIST:\n");
+        for (int i = 0; i < npasswd; i++) {
+            printf("%s\n", password_list[i]);
+        }
+    
+    pthread_t threads[num_threads];
     struct ThreadData thread_data[num_threads];
-    struct crypt_data crypt_data[num_threads];
+    
+    for(int i=0; i< num_threads; i++){
+        //thread_data[i].crypt_data[i].initialized = 0;
+        thread_data[i].crypt_data.initialized = 0;
+        thread_data[i].thread_id = i;
+    }
 
-    for (int i = 0; i < num_threads; i++) {
+   // struct crypt_data crypt_data[num_threads];
+    
+   /* for (int i = 0; i < num_threads; i++) {
         crypt_data[i].initialized = 0;
+    }*/
+    
+    //limpa buffer
+    for (int i = 0; i < num_threads; i++) {
+        buffer[i].hashes = NULL;
+        
+    }
+    
+    //producer
+    pthread_t producer;
+    int pr = pthread_create(&producer,NULL,feeder,NULL);
+    if(pr){
+        fprintf(stderr, "ERROR: return code from pthread_create() is %d\n", pr);
+        return 1;
     }
 
-    for (int i = 0; i < BUFFER_SIZE; i++) {
-        buffer[i].password = NULL;
-    }
-
+    //consumers
     for (int t = 0; t < num_threads; t++) {
-        thread_data[t].thread_id = t;
-        thread_data[t].crypt_data = &crypt_data[t];
+        //thread_data[t].thread_id = t;
+        //thread_data[t].crypt_data = &crypt_data[t];
         int rc = pthread_create(&threads[t], NULL, brute_force, (void *)&thread_data[t]);
         if (rc) {
             fprintf(stderr, "ERROR: return code from pthread_create() is %d\n", rc);
@@ -199,7 +248,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    for (int i = 0; i < nhashes; i++) {
+
+    /* for (int i = 0; i < nhashes; i++) {
         pthread_mutex_lock(&mutex);
         while (count == BUFFER_SIZE) {
             pthread_cond_wait(&buffer_not_full, &mutex);
@@ -212,11 +262,12 @@ int main(int argc, char *argv[]) {
         count++;
         pthread_cond_signal(&buffer_not_empty);
         pthread_mutex_unlock(&mutex);
-    }
+    } */
 
     for (int i = 0; i < num_threads; i++) {
         pthread_join(threads[i], NULL);
     }
+    pthread_join(producer,NULL);
 
     if (!foundhashes) {
         printf("Password not found for any hash!\n");
@@ -227,9 +278,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    pthread_mutex_destroy(&mutex);
+    /*pthread_mutex_destroy(&mutex);
     pthread_cond_destroy(&buffer_not_full);
     pthread_cond_destroy(&buffer_not_empty);
+    */
 
     return 0;
 }
