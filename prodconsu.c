@@ -24,13 +24,13 @@ int count = 0;
 sem_t vazio;
 sem_t cheio;
 pthread_mutex_t mutex_buffer;
-
+int num_threads;
 struct ThreadData {
     int thread_id;
     struct crypt_data *crypt_data;
 };
 
-// Load all hashes into hash_list and return the total number of hashes
+
 int load_hashes(const char *filename) {
     char hash[HASH_SIZE];
     FILE *file = fopen(filename, "r");
@@ -65,7 +65,7 @@ int load_hashes(const char *filename) {
     return i;
 }
 
-// Load all passwords into password_list and return the total number of passwords
+
 int load_passwords(const char *filename) {
     char passwd[PASS_LENGTH];
     FILE *file = fopen(filename, "r");
@@ -101,7 +101,7 @@ int load_passwords(const char *filename) {
     return i;
 }
 
-// Extract the salt from a hash
+
 char *extract_salt(char *hash) {
     char *salt = malloc(12);
     strncpy(salt, hash, 11);
@@ -109,7 +109,6 @@ char *extract_salt(char *hash) {
     return salt;
 }
 
-// Function to perform the brute force attack
 void *consumer(void *thread_arg) {
     struct ThreadData *data = (struct ThreadData *)thread_arg;
     int tid = data->thread_id;
@@ -118,7 +117,7 @@ void *consumer(void *thread_arg) {
     while(1){
         sem_wait(&cheio);
         pthread_mutex_lock(&mutex_buffer);
-        salt = buffer[out]; // Retrieve salt from the buffer
+        salt = buffer[out]; 
         out = (out+1)%BUFFER_SIZE;
         count--;
         pthread_mutex_unlock(&mutex_buffer);
@@ -147,39 +146,37 @@ void *consumer(void *thread_arg) {
 
     pthread_exit(NULL);
 }
-
 void *feeder() {
-    char *item;
-    for(int i = 0; i < nhashes; i++){
-        item = salt_list[i];
-        sem_wait(&vazio);
-        pthread_mutex_lock(&mutex_buffer);
-        buffer[in] = item;
-        in = (in+1) % BUFFER_SIZE;
-        count++;
-        pthread_mutex_unlock(&mutex_buffer);
-        sem_post(&cheio);
-    }
+       char *item;
+       for(int i = 0; i < nhashes; i++){
+           item = salt_list[i];
+           sem_wait(&vazio);
+           pthread_mutex_lock(&mutex_buffer);
+           buffer[in] = item;
+           in = (in+1) % BUFFER_SIZE;
+           count++;
+           pthread_mutex_unlock(&mutex_buffer);
+           sem_post(&cheio);
+       }
 
-    // Add NULL sentinel value to indicate end of data
-    sem_wait(&vazio);
-    pthread_mutex_lock(&mutex_buffer);
-    buffer[in] = NULL;
-    in = (in+1) % BUFFER_SIZE;
-    count++;
-    pthread_mutex_unlock(&mutex_buffer);
-    sem_post(&cheio);
-
-    pthread_exit(NULL);
-}
-
+       // Add NULL sentinel value for each consumer thread
+       for (int i = 0; i < num_threads; i++) {
+           sem_wait(&vazio);
+           pthread_mutex_lock(&mutex_buffer);
+           buffer[in] = NULL;
+           in = (in+1) % BUFFER_SIZE;
+           count++;
+           pthread_mutex_unlock(&mutex_buffer);
+           sem_post(&cheio);
+       }
+   }
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <num_threads> <dictionary_file>\n", argv[0]);
         return 1;
     }
-
-    int num_threads = atoi(argv[1]);
+   
+    num_threads = atoi(argv[1]);
     if (num_threads <= 0 || num_threads > MAX_THREADS) {
         fprintf(stderr, "Invalid number of threads. Must be between 1 and %d\n", MAX_THREADS);
         return 1;
@@ -189,7 +186,7 @@ int main(int argc, char *argv[]) {
     sem_init(&cheio, 0, 0);
     pthread_mutex_init(&mutex_buffer, NULL);
 
-    nhashes = load_hashes("hashes2.txt");
+    nhashes = load_hashes("hashes.txt");
     cracked_list = malloc(nhashes * sizeof(char *));
 
     if (nhashes < 0) {
