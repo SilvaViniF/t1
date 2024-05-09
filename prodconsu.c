@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <crypt.h>
 
-#define MAX_HASHES 1000
+#define HASH_SIZE 37	//36 + 1 '/n'
+
 #define MAX_PASSWORDS 15000000
 #define MAX_PASSWORD_LENGTH 128
 #define MAX_THREADS 128
@@ -13,12 +15,9 @@
 char **password_list;
 char **hash_list;
 char **cracked_list;
-int npasswd;
-int nhashes;
+int nPasswd;
+int nHashes;
 int foundhashes = 0;
-pthread_mutex_t mutex;
-pthread_cond_t buffer_not_full = PTHREAD_COND_INITIALIZER;
-pthread_cond_t buffer_not_empty = PTHREAD_COND_INITIALIZER;
 
 struct ThreadData {
     int thread_id;
@@ -156,20 +155,19 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int num_threads = atoi(argv[1]);
+    int num_threads = atoi(argv[1]);	//converte argv[1] para int
     if (num_threads <= 0 || num_threads > MAX_THREADS) {
         fprintf(stderr, "Invalid number of threads. Must be between 1 and %d\n", MAX_THREADS);
         return 1;
     }
-
-    pthread_mutex_init(&mutex, NULL);
-    cracked_list = malloc(MAX_HASHES * sizeof(char *));
-    nhashes = load_hashes("hashes2.txt");
+  
+    cracked_list = malloc(sizeof(char)*HASH_SIZE);
+    nHashes = load_hashes("hashes2.txt");
     if (nhashes < 0) {
         return 1;
     }
 
-    npasswd = load_passwords(argv[2]);
+    nPasswd = load_passwords(argv[2]);
     if (npasswd < 0) {
         return 1;
     }
