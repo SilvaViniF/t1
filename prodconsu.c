@@ -123,8 +123,8 @@ void *consumer(void *thread_arg) {
         pthread_mutex_unlock(&mutex_buffer);
         sem_post(&vazio);
 
-        if (salt == NULL) { // Check if the retrieved salt is NULL (sentinel value)
-            break; // Exit the loop if NULL (sentinel value) is encountered
+        if (salt == NULL) {
+            break;
         }
 
         int found = 0;
@@ -133,14 +133,13 @@ void *consumer(void *thread_arg) {
             for(int j = 0; j < nhashes; j++){
                 if(strcmp(hash_list[j], newhash) == 0){
                     printf("Thread %d: Password found for hash %s: %s\n", tid, hash_list[j], password_list[i]);
-                    // Store the cracked password at the corresponding index in cracked_list
                     cracked_list[j] = password_list[i];
                     foundhashes++;
                     found = 1;
-                    break; // Exit the inner loop once a password is found
+                    break;
                 }
             }
-            if(found) break; // Exit the outer loop once a password is found
+            if(found) break;
         }
     }
 
@@ -159,7 +158,6 @@ void *feeder() {
            sem_post(&cheio);
        }
 
-       // Add NULL sentinel value for each consumer thread
        for (int i = 0; i < num_threads; i++) {
            sem_wait(&vazio);
            pthread_mutex_lock(&mutex_buffer);
@@ -182,7 +180,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    sem_init(&vazio, 0, BUFFER_SIZE); // buffer starts empty
+    sem_init(&vazio, 0, BUFFER_SIZE);
     sem_init(&cheio, 0, 0);
     pthread_mutex_init(&mutex_buffer, NULL);
 
