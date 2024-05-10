@@ -129,15 +129,18 @@ void *consumer(void *thread_arg) {
         }
 
         int found = 0;
-        for(int i = 0; i < nhashes; i++){
-                printf("hash:  %s\n",hash);
-                if(strcmp(hash_list[i], hash) == 0){                    
-                    printf("Thread %d: Password found for hash %s: %s\n", tid, hash_list[i], password_list[i]);
-                    cracked_list[i] = password_list[i];
+        for(int i = 0; i < npasswd; i++){
+            for(int j = 0; j < nhashes; j++){
+                //printf("hash:  %s com hashlist:: %s\n",hash,hash_list[j]);
+                if(strcmp(hash_list[j], hash) == 0){                    
+                    printf("Thread %d: Password found for hash %s: %s\n", tid, hash_list[j], password_list[j]);
+                    cracked_list[j] = password_list[j];
                     foundhashes++;
                     found = 1;
                     break;
                 }
+            }
+            
             }
             if(found) break;
         }
@@ -148,17 +151,18 @@ void *feeder(void *thread_arg) {
        char *salt;
        struct ThreadData *data = (struct ThreadData *)thread_arg;
        int tid = data->thread_id;
-       for(int i = 0; i < nhashes; i++){
+       for(int i =0;i<npasswd;i++){
+        for(int j = 0; j < nhashes; j++){
            sem_wait(&vazio);
            pthread_mutex_lock(&mutex_buffer);
-           salt = salt_list[i];
+           salt = salt_list[j];
            char *newhash = crypt_r(password_list[i], salt, data->crypt_data);
            buffer[in] = newhash;
            in = (in+1) % BUFFER_SIZE;
            count++;
-           printf("buffer: %s\n",buffer[i]);
            pthread_mutex_unlock(&mutex_buffer);
            sem_post(&cheio);
+        }
        }
 
        for (int i = 0; i < num_threads; i++) {
