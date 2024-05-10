@@ -8,7 +8,7 @@
 #define HASH_SIZE 37
 #define MAX_THREADS 128
 #define PASS_LENGTH 30
-#define BUFFER_SIZE 500
+#define BUFFER_SIZE 128
 
 char **salt_list;
 char **password_list;
@@ -112,28 +112,28 @@ char *extract_salt(char *hash) {
 void *consumer(void *thread_arg) {
     struct ThreadData *data = (struct ThreadData *)thread_arg;
     int tid = data->thread_id;
-    char *salt;
+    char *hash;
 
     while(1){
         sem_wait(&cheio);
         pthread_mutex_lock(&mutex_buffer);
-        salt = buffer[out]; 
+        hash = buffer[out]; 
+        //printf("hash:  %s\n",hash);
         out = (out+1)%BUFFER_SIZE;
         count--;
         pthread_mutex_unlock(&mutex_buffer);
         sem_post(&vazio);
 
-        if (salt == NULL) {
+        if (hash == NULL) {
             break;
         }
 
         int found = 0;
-        for(int i = 0; i < npasswd; i++){
-            char *newhash = crypt_r(password_list[i], salt, data->crypt_data);
-            for(int j = 0; j < nhashes; j++){
-                if(strcmp(hash_list[j], newhash) == 0){                    
-                    printf("Thread %d: Password found for hash %s: %s\n", tid, hash_list[j], password_list[i]);
-                    cracked_list[j] = password_list[i];
+        for(int i = 0; i < nhashes; i++){
+                printf("hash:  %s\n",hash);
+                if(strcmp(hash_list[i], hash) == 0){                    
+                    printf("Thread %d: Password found for hash %s: %s\n", tid, hash_list[i], password_list[i]);
+                    cracked_list[i] = password_list[i];
                     foundhashes++;
                     found = 1;
                     break;
@@ -141,19 +141,22 @@ void *consumer(void *thread_arg) {
             }
             if(found) break;
         }
-    }
 
     pthread_exit(NULL);
 }
-void *feeder() {
-       char *item;
+void *feeder(void *thread_arg) {
+       char *salt;
+       struct ThreadData *data = (struct ThreadData *)thread_arg;
+       int tid = data->thread_id;
        for(int i = 0; i < nhashes; i++){
-           item = salt_list[i];
            sem_wait(&vazio);
            pthread_mutex_lock(&mutex_buffer);
-           buffer[in] = item;
+           salt = salt_list[i];
+           char *newhash = crypt_r(password_list[i], salt, data->crypt_data);
+           buffer[in] = newhash;
            in = (in+1) % BUFFER_SIZE;
            count++;
+           printf("buffer: %s\n",buffer[i]);
            pthread_mutex_unlock(&mutex_buffer);
            sem_post(&cheio);
        }
@@ -183,8 +186,8 @@ int main(int argc, char *argv[]) {
     sem_init(&vazio, 0, BUFFER_SIZE);
     sem_init(&cheio, 0, 0);
     pthread_mutex_init(&mutex_buffer, NULL);
-
-    nhashes = load_hashes("hashes.txt");
+    getchar();
+    nhashes = load_hashes("hashes3.txt");
     cracked_list = malloc(nhashes * sizeof(char *));
 
     if (nhashes < 0) {
@@ -208,14 +211,20 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nhashes; i++) {
         salt_list[i] = extract_salt(hash_list[i]);
     }
-
+    //producer initialize:
     pthread_t producer;
-    int pr = pthread_create(&producer, NULL, feeder, NULL);
+    struct ThreadData consudata;
+    struct crypt_data consucrypt;
+    consucrypt.initialized=0;
+    consudata.thread_id=999;
+    consudata.crypt_data=&consucrypt;
+
+    int pr = pthread_create(&producer, NULL, feeder, (void *)&consudata);
     if (pr) {
         fprintf(stderr, "ERROR: return code from pthread_create() is %d\n", pr);
         return 1;
     }
-
+    //consumer initialize
     for (int t = 0; t < num_threads; t++) {
         thread_data[t].thread_id = t;
         thread_data[t].crypt_data = &crypt_data[t];
