@@ -16,7 +16,8 @@ char **hash_list;
 char **cracked_list;
 int npasswd;
 int nhashes;
-int foundhashes = 0;
+int num_threads;
+int *foundhashes;
 char *buffer[BUFFER_SIZE];
 int in = 0;
 int out = 0;
@@ -24,7 +25,6 @@ int count = 0;
 sem_t vazio;
 sem_t cheio;
 pthread_mutex_t mutex_buffer;
-int num_threads;
 struct ThreadData {
     int thread_id;
     struct crypt_data *crypt_data;
@@ -76,6 +76,7 @@ int load_passwords(const char *filename) {
 
     password_list = NULL;
     int i = 0;
+    
     while (fgets(passwd, PASS_LENGTH, file) != NULL) {
         passwd[strcspn(passwd, "\n")] = 0;
         char *new_password = strdup(passwd);
@@ -113,6 +114,7 @@ void *consumer(void *thread_arg) {
     struct ThreadData *data = (struct ThreadData *)thread_arg;
     int tid = data->thread_id;
     char *salt;
+    foundhashes[tid]=0;
 
     while(1){
         sem_wait(&cheio);
@@ -132,10 +134,11 @@ void *consumer(void *thread_arg) {
             char *newhash = crypt_r(password_list[i], salt, data->crypt_data);
             for(int j = 0; j < nhashes; j++){
                 if(strcmp(hash_list[j], newhash) == 0){                    
-                    printf("Thread %d: Password found for hash %s: %s\n", tid, hash_list[j], password_list[i]);
+                    printf("Thread %d: found its %d password for hash %s: %s\n", tid,foundhashes[tid]+1, hash_list[j], password_list[i]);
                     cracked_list[j] = password_list[i];
-                    foundhashes++;
+                    foundhashes[tid]++;
                     found = 1;
+                    
                     break;
                 }
             }
@@ -203,7 +206,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < num_threads; i++) {
         crypt_data[i].initialized = 0;
     }
-
+    foundhashes=malloc(nhashes*sizeof(int));
     salt_list = malloc(nhashes * sizeof(char *));
     for (int i = 0; i < nhashes; i++) {
         salt_list[i] = extract_salt(hash_list[i]);
@@ -219,6 +222,7 @@ int main(int argc, char *argv[]) {
     for (int t = 0; t < num_threads; t++) {
         thread_data[t].thread_id = t;
         thread_data[t].crypt_data = &crypt_data[t];
+
         int rc = pthread_create(&threads[t], NULL, consumer, (void *)&thread_data[t]);
         if (rc) {
             fprintf(stderr, "ERROR: return code from pthread_create() is %d\n", rc);
@@ -226,20 +230,35 @@ int main(int argc, char *argv[]) {
         }
     }
 
+
     for (int i = 0; i < num_threads; i++) {
         pthread_join(threads[i], NULL);
     }
     pthread_join(producer, NULL);
 
+     FILE *resultado;
+    resultado = fopen("resultado.txt","w");
+    if(resultado==NULL){
+        printf("error creating file");
+        return 1;
+    }
+
+    int totalfoundhashes=0;
+    for(int i=0;i<num_threads;i++){
+        totalfoundhashes+=foundhashes[i];
+    }
     if (!foundhashes) {
         printf("Password not found for any hash!\n");
     } else {
-        printf("\nHashes encontrados:\n");
-        for (int i = 0; i < foundhashes; i++) {
+        printf("\nHashes encontrados: %d\n",totalfoundhashes);
+        for (int i = 0; i < totalfoundhashes; i++) {
             printf("%s\n", cracked_list[i]);
+            cracked_list[i]=strcat(cracked_list[i],"\n");
+            fputs(cracked_list[i],resultado);
         }
     }
 
+   
     pthread_mutex_destroy(&mutex_buffer);
 
     return 0;
